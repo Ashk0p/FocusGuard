@@ -10,7 +10,7 @@ class ActiveWindowPoller:
         self.rule_controller = rule_controller
         self.idle_threshold_seconds = idle_threshold_seconds
 
-    def get_active_process_name((self) -> str:
+    def get_active_process_name(self) -> str:
         """Queries the active foreground window process executable name."""
         if sys.platform == "win32":
             try:
