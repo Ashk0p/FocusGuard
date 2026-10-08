@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 class RuleController:
     """UC1: Manages application monitoring rules, categories, and time quotas (D1 Database interface)."""
-    
+
     def __init__(self, db_path: str = "rules.json"):
         self.db_path = db_path
         self.rules = self._load_rules()
@@ -16,8 +16,8 @@ class RuleController:
             try:
                 with open(self.db_path, "r") as f:
                     return json.load(f)
-            except json.JSONDecodeError:
-                print(f"[WARN] Corrupted {self.db_path} found. Initializing default rules.")
+            except (json.JSONDecodeError, OSError):
+                print(f"[WARN] Corrupted or unreadable {self.db_path}. Initializing defaults.")
 
         # Default fallback rules
         default_rules = {
@@ -31,24 +31,36 @@ class RuleController:
 
     def validate_and_save_rule(self, exec_name: str, category: str, quota_minutes: int) -> bool:
         """Validates input formats and saves/updates the rule in the database."""
-        # Validation checks
         if not exec_name or not isinstance(exec_name, str):
             return False
-        if not exec_name.strip().endswith(".exe"):
+
+        clean_exec = exec_name.strip().lower()
+        if not clean_exec.endswith(".exe"):
             return False
+
         if category not in ["Distracting", "Productive", "Neutral"]:
             return False
-        if not isinstance(quota_minutes, int) or quota_minutes < 0:
+
+        # Ensure quota_minutes is strictly an int (rejecting booleans) and non-negative
+        if type(quota_minutes) is not int or quota_minutes < 0:
             return False
 
         # Update local state and persist to D1 JSON store
-        clean_exec = exec_name.strip().lower()
         self.rules[clean_exec] = {
             "category": category,
             "quota_minutes": quota_minutes
         }
         self._save(self.rules)
         return True
+
+    def delete_rule(self, exec_name: str) -> bool:
+        """Removes a configured rule for a specific executable."""
+        clean_exec = exec_name.strip().lower()
+        if clean_exec in self.rules:
+            del self.rules[clean_exec]
+            self._save(self.rules)
+            return True
+        return False
 
     def _save(self, data: Dict[str, Dict[str, Any]]) -> None:
         """Persists current rule dictionary to rules.json."""
